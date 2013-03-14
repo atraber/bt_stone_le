@@ -1,0 +1,21 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+#*.a
+
+# CCS files
+*.obj
+*.pp
+*.mk
+*.opt
+Release/makefile
+Debug/makefile
