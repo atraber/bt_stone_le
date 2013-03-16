@@ -120,18 +120,8 @@
    /* Following converts a Sniff Parameter in Milliseconds to frames.   */
 #define MILLISECONDS_TO_BASEBAND_SLOTS(_x)         ((_x) / (0.625))
 
-   /* The following is used as a printf replacement.                    */
-#ifndef __DISABLE_DISPLAY__
 
 #define Display(_x)                                do { BTPS_OutputMessage _x; } while(0)
-
-
-#else
-
-#define Display(_x)                                do { ; } while(0)
-
-#endif
-
 #define LOG_ERROR(_x)	Display(_x)
 #define LOG_DEBUG(_x)	Display(_x)
 #define LOG_INFO(_x)	Display(_x)
@@ -289,14 +279,6 @@ static Encryption_Key_t IRK;
    /* declared static are initialized to 0 automatically by the         */
    /* compiler as part of standard C/C++).                              */
 
-static Byte_t              SPPLEBuffer[SPPLE_DATA_BUFFER_LENGTH+1];  /* Buffer that is */
-                                                    /* used for Sending/Receiving      */
-                                                    /* SPPLE Service Data.             */
-
-static unsigned int        SPPLEServiceID;          /* The following holds the SPP LE  */
-                                                    /* Service ID that is returned from*/
-                                                    /* GATT_Register_Service().        */
-
 static unsigned int        GAPSInstanceID;          /* Holds the Instance ID for the   */
                                                     /* GAP Service.                    */
 
@@ -338,6 +320,8 @@ static Boolean_t           MITMProtection;          /* Variable which flags whet
                                                     /* during a Secure Simple Pairing  */
                                                     /* procedure.                      */
 
+unsigned int ServiceID;
+
    /* The following string table is used to map HCI Version information */
    /* to an easily displayable version string.                          */
 static BTPSCONST char *HCIVersionStrings[] =
@@ -354,118 +338,6 @@ static BTPSCONST char *HCIVersionStrings[] =
 
 #define NUM_SUPPORTED_HCI_VERSIONS              (sizeof(HCIVersionStrings)/sizeof(char *) - 1)
 
-   /*********************************************************************/
-   /**                     SPPLE Service Table                         **/
-   /*********************************************************************/
-
-   /* The SPPLE Service Declaration UUID.                               */
-static BTPSCONST GATT_Primary_Service_128_Entry_t SPPLE_Service_UUID =
-{
-   SPPLE_SERVICE_UUID_CONSTANT
-};
-
-   /* The Tx Characteristic Declaration.                                */
-static BTPSCONST GATT_Characteristic_Declaration_128_Entry_t SPPLE_Tx_Declaration =
-{
-   GATT_CHARACTERISTIC_PROPERTIES_NOTIFY,
-   SPPLE_TX_CHARACTERISTIC_UUID_CONSTANT
-};
-
-   /* The Tx Characteristic Value.                                      */
-static BTPSCONST GATT_Characteristic_Value_128_Entry_t  SPPLE_Tx_Value =
-{
-   SPPLE_TX_CHARACTERISTIC_UUID_CONSTANT,
-   0,
-   NULL
-};
-
-   /* The Tx Credits Characteristic Declaration.                        */
-static BTPSCONST GATT_Characteristic_Declaration_128_Entry_t SPPLE_Tx_Credits_Declaration =
-{
-   (GATT_CHARACTERISTIC_PROPERTIES_READ|GATT_CHARACTERISTIC_PROPERTIES_WRITE_WITHOUT_RESPONSE|GATT_CHARACTERISTIC_PROPERTIES_WRITE),
-   SPPLE_TX_CREDITS_CHARACTERISTIC_UUID_CONSTANT
-};
-
-   /* The Tx Credits Characteristic Value.                              */
-static BTPSCONST GATT_Characteristic_Value_128_Entry_t SPPLE_Tx_Credits_Value =
-{
-   SPPLE_TX_CREDITS_CHARACTERISTIC_UUID_CONSTANT,
-   0,
-   NULL
-};
-
-   /* The SPPLE RX Characteristic Declaration.                          */
-static BTPSCONST GATT_Characteristic_Declaration_128_Entry_t SPPLE_Rx_Declaration =
-{
-   (GATT_CHARACTERISTIC_PROPERTIES_WRITE_WITHOUT_RESPONSE),
-   SPPLE_RX_CHARACTERISTIC_UUID_CONSTANT
-};
-
-   /* The SPPLE RX Characteristic Value.                                */
-static BTPSCONST GATT_Characteristic_Value_128_Entry_t  SPPLE_Rx_Value =
-{
-   SPPLE_RX_CHARACTERISTIC_UUID_CONSTANT,
-   0,
-   NULL
-};
-
-
-   /* The SPPLE Rx Credits Characteristic Declaration.                  */
-static BTPSCONST GATT_Characteristic_Declaration_128_Entry_t SPPLE_Rx_Credits_Declaration =
-{
-   (GATT_CHARACTERISTIC_PROPERTIES_READ|GATT_CHARACTERISTIC_PROPERTIES_NOTIFY),
-   SPPLE_RX_CREDITS_CHARACTERISTIC_UUID_CONSTANT
-};
-
-   /* The SPPLE Rx Credits Characteristic Value.                        */
-static BTPSCONST GATT_Characteristic_Value_128_Entry_t SPPLE_Rx_Credits_Value =
-{
-   SPPLE_RX_CREDITS_CHARACTERISTIC_UUID_CONSTANT,
-   0,
-   NULL
-};
-
-   /* Client Characteristic Configuration Descriptor.                   */
-static GATT_Characteristic_Descriptor_16_Entry_t Client_Characteristic_Configuration =
-{
-   GATT_CLIENT_CHARACTERISTIC_CONFIGURATION_UUID_CONSTANT,
-   GATT_CLIENT_CHARACTERISTIC_CONFIGURATION_LENGTH,
-   NULL
-};
-
-   /* The following defines the SPPLE service that is registered with   */
-   /* the GATT_Register_Service function call.                          */
-   /* * NOTE * This array will be registered with GATT in the call to   */
-   /*          GATT_Register_Service.                                   */
-BTPSCONST GATT_Service_Attribute_Entry_t SPPLE_Service[] =
-{
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetPrimaryService128,            (Byte_t *)&SPPLE_Service_UUID},                  //0
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetCharacteristicDeclaration128, (Byte_t *)&SPPLE_Tx_Declaration},                //1
-   {0,                                      aetCharacteristicValue128,       (Byte_t *)&SPPLE_Tx_Value},                      //2
-   {GATT_ATTRIBUTE_FLAGS_READABLE_WRITABLE, aetCharacteristicDescriptor16,   (Byte_t *)&Client_Characteristic_Configuration}, //3
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetCharacteristicDeclaration128, (Byte_t *)&SPPLE_Tx_Credits_Declaration},        //4
-   {GATT_ATTRIBUTE_FLAGS_READABLE_WRITABLE, aetCharacteristicValue128,       (Byte_t *)&SPPLE_Tx_Credits_Value},              //5
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetCharacteristicDeclaration128, (Byte_t *)&SPPLE_Rx_Declaration},                //6
-   {GATT_ATTRIBUTE_FLAGS_WRITABLE,          aetCharacteristicValue128,       (Byte_t *)&SPPLE_Rx_Value},                      //7
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetCharacteristicDeclaration128, (Byte_t *)&SPPLE_Rx_Credits_Declaration},        //8
-   {GATT_ATTRIBUTE_FLAGS_READABLE,          aetCharacteristicValue128,       (Byte_t *)&SPPLE_Rx_Credits_Value},              //9
-   {GATT_ATTRIBUTE_FLAGS_READABLE_WRITABLE, aetCharacteristicDescriptor16,   (Byte_t *)&Client_Characteristic_Configuration}, //10
-};
-
-#define SPPLE_SERVICE_ATTRIBUTE_COUNT               (sizeof(SPPLE_Service)/sizeof(GATT_Service_Attribute_Entry_t))
-
-#define SPPLE_TX_CHARACTERISTIC_ATTRIBUTE_OFFSET               2
-#define SPPLE_TX_CHARACTERISTIC_CCD_ATTRIBUTE_OFFSET           3
-#define SPPLE_TX_CREDITS_CHARACTERISTIC_ATTRIBUTE_OFFSET       5
-#define SPPLE_RX_CHARACTERISTIC_ATTRIBUTE_OFFSET               7
-#define SPPLE_RX_CREDITS_CHARACTERISTIC_ATTRIBUTE_OFFSET       9
-#define SPPLE_RX_CREDITS_CHARACTERISTIC_CCD_ATTRIBUTE_OFFSET   10
-
-   /*********************************************************************/
-   /**                    END OF SERVICE TABLE                         **/
-   /*********************************************************************/
-
-   /* Internal function prototypes.                                     */
 static Boolean_t CreateNewDeviceInfoEntry(DeviceInfo_t **ListHead, GAP_LE_Address_Type_t ConnectionAddressType, BD_ADDR_t ConnectionBD_ADDR);
 static DeviceInfo_t *SearchDeviceInfoEntryByBD_ADDR(DeviceInfo_t **ListHead, BD_ADDR_t BD_ADDR);
 static DeviceInfo_t *DeleteDeviceInfoEntry(DeviceInfo_t **ListHead, BD_ADDR_t BD_ADDR);
@@ -483,16 +355,6 @@ static int CloseStack(void);
 static int SetDisc(void);
 static int SetConnect(void);
 static int SetPairable(void);
-
-static unsigned int AddDataToBuffer(SPPLE_Data_Buffer_t *DataBuffer, unsigned int DataLength, Byte_t *Data);
-static unsigned int RemoveDataFromBuffer(SPPLE_Data_Buffer_t *DataBuffer, unsigned int BufferLength, Byte_t *Buffer);
-static void InitializeBuffer(SPPLE_Data_Buffer_t *DataBuffer);
-
-static void SPPLESendCredits(DeviceInfo_t *DeviceInfo, unsigned int DataLength);
-static void SPPLEReceiveCreditEvent(DeviceInfo_t *DeviceInfo, unsigned int Credits);
-static Boolean_t SPPLESendData(DeviceInfo_t *DeviceInfo, unsigned int DataLength, Byte_t *Data);
-static void SPPLEDataIndicationEvent(DeviceInfo_t *DeviceInfo, unsigned int DataLength, Byte_t *Data);
-static int SPPLEReadData(DeviceInfo_t *DeviceInfo, unsigned int BufferLength, Byte_t *Buffer);
 
 static void ConfigureCapabilities(GAP_LE_Pairing_Capabilities_t *Capabilities);
 static int SlavePairingRequestResponse(BD_ADDR_t BD_ADDR);
@@ -777,8 +639,8 @@ static int CloseStack(void)
          GAPS_Cleanup_Service(BluetoothStackID, GAPSInstanceID);
 
       /* Un-registered SPP LE Service.                                  */
-      if(SPPLEServiceID)
-         GATT_Un_Register_Service(BluetoothStackID, SPPLEServiceID);
+      if(ServiceID)
+         GATT_Un_Register_Service(BluetoothStackID, ServiceID);
 
       /* Cleanup GATT Module.                                           */
       GATT_Cleanup(BluetoothStackID);
@@ -979,439 +841,6 @@ static int SetPairable(void)
       /* No valid Bluetooth Stack ID exists.                            */
       ret_val = INVALID_STACK_ID_ERROR;
    }
-
-   return(ret_val);
-}
-
-   /* The following function is a utility function that is used to add  */
-   /* data (using InIndex as the buffer index) from the buffer specified*/
-   /* by the DataBuffer parameter.  The second and third parameters     */
-   /* specified the length of the data to add and the pointer to the    */
-   /* data to add to the buffer.  This function returns the actual      */
-   /* number of bytes that were added to the buffer (or 0 if none were  */
-   /* added).                                                           */
-static unsigned int AddDataToBuffer(SPPLE_Data_Buffer_t *DataBuffer, unsigned int DataLength, Byte_t *Data)
-{
-   unsigned int BytesAdded = 0;
-   unsigned int Count;
-
-   /* Verify that the input parameters are valid.                       */
-   if((DataBuffer) && (DataLength) && (Data))
-   {
-      /* Loop while we have data AND space in the buffer.               */
-      while(DataLength)
-      {
-         /* Get the number of bytes that can be placed in the buffer    */
-         /* until it wraps.                                             */
-         Count = DataBuffer->BufferSize - DataBuffer->InIndex;
-
-         /* Determine if the number of bytes free is less than the      */
-         /* number of bytes till we wrap and choose the smaller of the  */
-         /* numbers.                                                    */
-         Count = (DataBuffer->BytesFree < Count)?DataBuffer->BytesFree:Count;
-
-         /* Cap the Count that we add to buffer to the length of the    */
-         /* data provided by the caller.                                */
-         Count = (Count > DataLength)?DataLength:Count;
-
-         if(Count)
-         {
-            /* Copy the data into the buffer.                           */
-            BTPS_MemCopy(&DataBuffer->Buffer[DataBuffer->InIndex], Data, Count);
-
-            /* Update the counts.                                       */
-            DataBuffer->InIndex   += Count;
-            DataBuffer->BytesFree -= Count;
-            DataLength            -= Count;
-            BytesAdded            += Count;
-            Data                  += Count;
-
-            /* Wrap the InIndex if necessary.                           */
-            if(DataBuffer->InIndex >= DataBuffer->BufferSize)
-               DataBuffer->InIndex = 0;
-         }
-         else
-            break;
-      }
-   }
-
-   return(BytesAdded);
-}
-
-   /* The following function is a utility function that is used to      */
-   /* removed data (using OutIndex as the buffer index) from the buffer */
-   /* specified by the DataBuffer parameter The second parameter        */
-   /* specifies the length of the Buffer that is pointed to by the third*/
-   /* parameter.  This function returns the actual number of bytes that */
-   /* were removed from the DataBuffer (or 0 if none were added).       */
-   /* * NOTE * Buffer is optional and if not specified up to            */
-   /*          BufferLength bytes will be deleted from the Buffer.      */
-static unsigned int RemoveDataFromBuffer(SPPLE_Data_Buffer_t *DataBuffer, unsigned int BufferLength, Byte_t *Buffer)
-{
-   unsigned int Count;
-   unsigned int BytesRemoved = 0;
-   unsigned int MaxRemove;
-
-   /* Verify that the input parameters are valid.                       */
-   if((DataBuffer) && (BufferLength))
-   {
-      /* Loop while we have data to remove and space in the buffer to   */
-      /* place it.                                                      */
-      while(BufferLength)
-      {
-         /* Determine the number of bytes that are present in the       */
-         /* buffer.                                                     */
-         Count = DataBuffer->BufferSize - DataBuffer->BytesFree;
-         if(Count)
-         {
-            /* Calculate the maximum number of bytes that I can remove  */
-            /* from the buffer before it wraps.                         */
-            MaxRemove = DataBuffer->BufferSize - DataBuffer->OutIndex;
-
-            /* Cap max we can remove at the BufferLength of the caller's*/
-            /* buffer.                                                  */
-            MaxRemove = (MaxRemove > BufferLength)?BufferLength:MaxRemove;
-
-            /* Cap the number of bytes I will remove in this iteration  */
-            /* at the maximum I can remove or the number of bytes that  */
-            /* are in the buffer.                                       */
-            Count = (Count > MaxRemove)?MaxRemove:Count;
-
-            /* Copy the data into the caller's buffer (If specified).   */
-            if(Buffer)
-            {
-               BTPS_MemCopy(Buffer, &DataBuffer->Buffer[DataBuffer->OutIndex], Count);
-               Buffer += Count;
-            }
-
-            /* Update the counts.                                       */
-            DataBuffer->OutIndex  += Count;
-            DataBuffer->BytesFree += Count;
-            BytesRemoved          += Count;
-            BufferLength          -= Count;
-
-            /* Wrap the OutIndex if necessary.                          */
-            if(DataBuffer->OutIndex >= DataBuffer->BufferSize)
-               DataBuffer->OutIndex = 0;
-         }
-         else
-            break;
-      }
-   }
-
-   return(BytesRemoved);
-}
-
-   /* The following function is used to initialize the specified buffer */
-   /* to the defaults.                                                  */
-static void InitializeBuffer(SPPLE_Data_Buffer_t *DataBuffer)
-{
-   /* Verify that the input parameters are valid.                       */
-   if(DataBuffer)
-   {
-      DataBuffer->BufferSize = SPPLE_DATA_CREDITS;
-      DataBuffer->BytesFree  = SPPLE_DATA_CREDITS;
-      DataBuffer->InIndex    = 0;
-      DataBuffer->OutIndex   = 0;
-   }
-}
-
-   /* The following function is responsible for transmitting the        */
-   /* specified number of credits to the remote device.                 */
-static void SPPLESendCredits(DeviceInfo_t *DeviceInfo, unsigned int DataLength)
-{
-   NonAlignedWord_t Credits;
-
-   /* Verify that the input parameters are semi-valid.                  */
-   if((DeviceInfo) && (DataLength))
-   {
-
-//xxx Debug statement
-//xxx      Display(("\r\nSending %u Credits.\r\n", DataLength));
-
-      /* Format the credit packet.                                      */
-      ASSIGN_HOST_WORD_TO_LITTLE_ENDIAN_UNALIGNED_WORD(&Credits, DataLength);
-
-      /* We are acting as a server so notify the Rx Credits             */
-      /* characteristic.                                                */
-      if(DeviceInfo->ServerInfo.Rx_Credit_Client_Configuration_Descriptor == GATT_CLIENT_CONFIGURATION_CHARACTERISTIC_NOTIFY_ENABLE)
-         GATT_Handle_Value_Notification(BluetoothStackID, SPPLEServiceID, ConnectionID, SPPLE_RX_CREDITS_CHARACTERISTIC_ATTRIBUTE_OFFSET, WORD_SIZE, (Byte_t *)&Credits);
-   }
-}
-
-   /* The following function is responsible for handling a received     */
-   /* credit, event.                                                    */
-static void SPPLEReceiveCreditEvent(DeviceInfo_t *DeviceInfo, unsigned int Credits)
-{
-   /* Verify that the input parameters are semi-valid.                  */
-   if(DeviceInfo)
-   {
-//xxx Debug statement
-//xxx      Display(("\r\nReceived %u Credits, Credit Count %u.\r\n", Credits, Credits+DeviceInfo->TransmitCredits));
-
-      /* If this is a real credit event store the number of credits.    */
-      DeviceInfo->TransmitCredits += Credits;
-
-      /* Send all queued data.                                          */
-      SPPLESendData(DeviceInfo, 0, NULL);
-
-      /* It is possible that we have received data queued, so call the  */
-      /* Data Indication Event to handle this.                          */
-      SPPLEDataIndicationEvent(DeviceInfo, 0, NULL);
-   }
-}
-
-   /* The following function sends the specified data to the specified  */
-   /* data.  This function will queue any of the data that does not go  */
-   /* out.  This function returns TRUE if all the data was sent, or     */
-   /* FALSE.                                                            */
-   /* * NOTE * If DataLength is 0 and Data is NULL then all queued data */
-   /*          will be sent.                                            */
-static Boolean_t SPPLESendData(DeviceInfo_t *DeviceInfo, unsigned int DataLength, Byte_t *Data)
-{
-   int          Result;
-   Boolean_t    DataSent = FALSE;
-   Boolean_t	 Done;
-   unsigned int DataCount;
-   unsigned int MaxLength;
-   unsigned int TransmitIndex;
-   unsigned int SPPLEBufferLength;
-
-   /* Verify that the input parameters are semi-valid.                  */
-   if(DeviceInfo)
-   {
-      /* Loop while we have data to send and we can send it.            */
-      Done              = FALSE;
-      TransmitIndex     = 0;
-      SPPLEBufferLength = 0;
-      while(!Done)
-      {
-         /* Check to see if we have credits to use to transmit the data.*/
-         if(DeviceInfo->TransmitCredits)
-         {
-            /* Get the maximum length of what we can send in this       */
-            /* transaction.                                             */
-            MaxLength = (SPPLE_DATA_BUFFER_LENGTH > DeviceInfo->TransmitCredits)?DeviceInfo->TransmitCredits:SPPLE_DATA_BUFFER_LENGTH;
-
-            /* If we do not have any outstanding data get some more     */
-            /* data.                                                    */
-            if(!SPPLEBufferLength)
-            {
-               /* Send any buffered data first.                         */
-               if(DeviceInfo->TransmitBuffer.BytesFree != DeviceInfo->TransmitBuffer.BufferSize)
-               {
-                  /* Remove the queued data from the Transmit Buffer.   */
-                  SPPLEBufferLength = RemoveDataFromBuffer(&(DeviceInfo->TransmitBuffer), MaxLength, SPPLEBuffer);
-               }
-               else
-               {
-                  /* Check to see if we have data to send.              */
-                  if((DataLength) && (Data))
-                  {
-                     /* Copy the data to send into the SPPLEBuffer.     */
-                     SPPLEBufferLength = (DataLength > MaxLength)?MaxLength:DataLength;
-                     BTPS_MemCopy(SPPLEBuffer, Data, SPPLEBufferLength);
-
-                     DataLength -= SPPLEBufferLength;
-                     Data       += SPPLEBufferLength;
-                  }
-                  else
-                  {
-                     /* No data queued or data left to send so exit the */
-                     /* loop.                                           */
-                     Done = TRUE;
-                  }
-               }
-
-               /* Set the count of data that we can send.               */
-               DataCount         = SPPLEBufferLength;
-
-               /* Reset the Transmit Index to 0.                        */
-               TransmitIndex     = 0;
-            }
-            else
-            {
-               /* We have data to send so cap it at the maximum that can*/
-               /* be transmitted.                                       */
-               DataCount = (SPPLEBufferLength > MaxLength)?MaxLength:SPPLEBufferLength;
-            }
-
-            /* Try to write data if not exiting the loop.               */
-            if(!Done)
-            {
-//xxx Debug statement
-//xxx               Display(("\r\nTrying to send %u bytes.\r\n", DataCount));
-
-               /* We are acting as SPPLE Server, so notify the Tx       */
-               /* Characteristic.                                       */
-               if(DeviceInfo->ServerInfo.Tx_Client_Configuration_Descriptor == GATT_CLIENT_CONFIGURATION_CHARACTERISTIC_NOTIFY_ENABLE)
-                  Result = GATT_Handle_Value_Notification(BluetoothStackID, SPPLEServiceID, ConnectionID, SPPLE_TX_CHARACTERISTIC_ATTRIBUTE_OFFSET, (Word_t)DataCount, &SPPLEBuffer[TransmitIndex]);
-               else
-               {
-                  /* Not configured for notifications so exit the loop. */
-                  Done = TRUE;
-               }
-
-               /* Check to see if any data was written.                 */
-               if(!Done)
-               {
-                  /* Check to see if the data was written successfully. */
-                  if(Result >= 0)
-                  {
-                     /* Adjust the counters.                            */
-                     TransmitIndex               += (unsigned int)Result;
-                     SPPLEBufferLength           -= (unsigned int)Result;
-                     DeviceInfo->TransmitCredits -= (unsigned int)Result;
-
-//xxx Debug statement
-//xxx                     Display(("\r\nSent %u, Remaining Credits %u.\r\n", (unsigned int)Result, DeviceInfo->TransmitCredits));
-
-                     /* Flag that data was sent.                        */
-                     DataSent                     = TRUE;
-
-                     /* If we have no more remaining Tx Credits AND we  */
-                     /* have data built up to send, we need to queue    */
-                     /* this in the Tx Buffer.                          */
-                     if((!(DeviceInfo->TransmitCredits)) && (SPPLEBufferLength))
-                     {
-                        /* Add the remaining data to the transmit       */
-                        /* buffer.                                      */
-                        AddDataToBuffer(&(DeviceInfo->TransmitBuffer), SPPLEBufferLength, &SPPLEBuffer[TransmitIndex]);
-
-                        SPPLEBufferLength = 0;
-                     }
-                  }
-                  else
-                  {
-                     Display(("SEND failed with error %d\r\n", Result));
-
-                     DataSent  = FALSE;
-                  }
-               }
-            }
-         }
-         else
-         {
-            /* We have no transmit credits, so buffer the data.         */
-            DataCount = AddDataToBuffer(&(DeviceInfo->TransmitBuffer), DataLength, Data);
-            if(DataCount == DataLength)
-               DataSent = TRUE;
-            else
-               DataSent = FALSE;
-
-            /* Exit the loop.                                           */
-            Done = TRUE;
-         }
-      }
-   }
-
-   return(DataSent);
-}
-
-   /* The following function is responsible for handling a data         */
-   /* indication event.                                                 */
-static void SPPLEDataIndicationEvent(DeviceInfo_t *DeviceInfo, unsigned int DataLength, Byte_t *Data)
-{
-   Boolean_t    Done;
-   unsigned int ReadLength;
-   unsigned int Length;
-
-   /* Verify that the input parameters are semi-valid.                  */
-   if(DeviceInfo)
-   {
-//xxx Debug statement
-//xxx      Display(("\r\nData Indication Event: %u bytes.\r\n", (unsigned int)DataLength));
-
-      /* Loop until we read all of the data queued.                     */
-      Done = FALSE;
-      while(!Done)
-      {
-         /* If in loopback mode cap what we remove at the max of what we*/
-         /* can send or queue.                                          */
-         ReadLength = (SPPLE_DATA_BUFFER_LENGTH > (DeviceInfo->TransmitCredits + DeviceInfo->TransmitBuffer.BytesFree))?(DeviceInfo->TransmitCredits + DeviceInfo->TransmitBuffer.BytesFree):SPPLE_DATA_BUFFER_LENGTH;
-
-         /* Read all queued data.                                       */
-         Length = SPPLEReadData(DeviceInfo, ReadLength, SPPLEBuffer);
-         if(((int)Length) > 0)
-         {
-            /* Loopback the data.                                       */
-            SPPLESendData(DeviceInfo, Length, SPPLEBuffer);
-         }
-         else
-            Done = TRUE;
-      }
-
-      /* Only send/display data just received if any is specified in the*/
-      /* call to this function.                                         */
-      if((DataLength) && (Data))
-      {
-         /* Only queue the data in the receive buffer that we cannot    */
-         /* send.                                                       */
-         ReadLength = (DataLength > (DeviceInfo->TransmitCredits + DeviceInfo->TransmitBuffer.BytesFree))?(DeviceInfo->TransmitCredits + DeviceInfo->TransmitBuffer.BytesFree):DataLength;
-
-         /* Send the data.                                              */
-         if(SPPLESendData(DeviceInfo, ReadLength, Data))
-         {
-            /* Credit the data we just sent.                            */
-            SPPLESendCredits(DeviceInfo, ReadLength);
-
-            /* Increment what was just sent.                            */
-            DataLength -= ReadLength;
-            Data       += ReadLength;
-         }
-
-         /* If we have data left that cannot be sent, queue this in the */
-         /* receive buffer.                                             */
-         if((DataLength) && (Data))
-         {
-            /* We are not in Loopback or Automatic Read Mode so just    */
-            /* buffer all the data.                                     */
-            Length = AddDataToBuffer(&(DeviceInfo->ReceiveBuffer), DataLength, Data);
-            if(Length != DataLength)
-               Display(("Receive Buffer Overflow of %u bytes", DataLength - Length));
-         }
-      }
-   }
-}
-
-   /* The following function is used to read data from the specified    */
-   /* device.  The final two parameters specify the BufferLength and the*/
-   /* Buffer to read the data into.  On success this function returns   */
-   /* the number of bytes read.  If an error occurs this will return a  */
-   /* negative error code.                                              */
-static int SPPLEReadData(DeviceInfo_t *DeviceInfo, unsigned int BufferLength, Byte_t *Buffer)
-{
-   int          ret_val;
-   Boolean_t    Done;
-   unsigned int Length;
-   unsigned int TotalLength;
-
-   /* Verify that the input parameters are semi-valid.                  */
-   if((DeviceInfo) && (BufferLength) && (Buffer))
-   {
-      Done        = FALSE;
-      TotalLength = 0;
-      while(!Done)
-      {
-         Length = RemoveDataFromBuffer(&(DeviceInfo->ReceiveBuffer), BufferLength, Buffer);
-         if(Length > 0)
-         {
-            BufferLength -= Length;
-            Buffer       += Length;
-            TotalLength   = Length;
-         }
-         else
-            Done = TRUE;
-      }
-
-      /* Credit what we read.                                           */
-      SPPLESendCredits(DeviceInfo, TotalLength);
-
-      /* Return the total number of bytes read.                         */
-      ret_val = (int)TotalLength;
-   }
-   else
-      ret_val = BTPS_ERROR_INVALID_PARAMETER;
 
    return(ret_val);
 }
@@ -1834,7 +1263,6 @@ BTPSCONST GATT_Service_Attribute_Entry_t MYLE_Service[] =
 
 #define MYLE_BUTTON_CHARACTERISTIC_ATTRIBUTE_OFFSET               2
 
-unsigned int ServiceID;
 /* This function will return zero on successful execution  */
 /* and a negative value on errors.                                   */
 static int RegisterService(ParameterList_t *TempParam)
@@ -1846,7 +1274,7 @@ static int RegisterService(ParameterList_t *TempParam)
 	if(!ConnectionID)
 	{
 		/* Verify that the Service is not already registered.             */
-		if(!SPPLEServiceID)
+		if(!ServiceID)
 		{
 			/* Initialize the handle group to 0 .                          */
 			ServiceHandleGroup.Starting_Handle = 0;
@@ -1957,7 +1385,7 @@ static void BTPSAPI GAP_LE_Event_Callback(unsigned int BluetoothStackID, GAP_LE_
                   }
 
                   /* Set the LED.                                       */
-                  HAL_SetLED(1, 1);
+                  HAL_SetLED(0, 1);
                }
             }
             break;
@@ -1983,11 +1411,6 @@ static void BTPSAPI GAP_LE_Event_Callback(unsigned int BluetoothStackID, GAP_LE_
                   /* outstanding for this device.                       */
                   DeviceInfo->Flags &= ~DEVICE_INFO_FLAGS_SERVICE_DISCOVERY_OUTSTANDING;
 
-                  /* Re-initialize the Transmit and Receive Buffers, as */
-                  /* well as the transmit credits.                      */
-                  InitializeBuffer(&(DeviceInfo->TransmitBuffer));
-                  InitializeBuffer(&(DeviceInfo->ReceiveBuffer));
-
                   /* Clear the CCCDs stored for this device.            */
                   DeviceInfo->ServerInfo.Rx_Credit_Client_Configuration_Descriptor = 0;
                   DeviceInfo->ServerInfo.Tx_Client_Configuration_Descriptor        = 0;
@@ -2000,7 +1423,7 @@ static void BTPSAPI GAP_LE_Event_Callback(unsigned int BluetoothStackID, GAP_LE_
                ASSIGN_BD_ADDR(ConnectionBD_ADDR, 0, 0, 0, 0, 0, 0);
 
                /* Clear the LED.                                        */
-               HAL_SetLED(1, 0);
+               HAL_SetLED(0, 0);
             }
             break;
          case etLE_Authentication:
@@ -2217,9 +1640,7 @@ static void BTPSAPI GATT_ServerEventCallback(unsigned int BluetoothStackID, GATT
    /*          outstanding.                                             */
 static void BTPSAPI GATT_Connection_Event_Callback(unsigned int BluetoothStackID, GATT_Connection_Event_Data_t *GATT_Connection_Event_Data, unsigned long CallbackParameter)
 {
-   Word_t        Credits;
    BoardStr_t    BoardStr;
-   DeviceInfo_t *DeviceInfo;
 
    /* Verify that all parameters to this callback are Semi-Valid.       */
    if((BluetoothStackID) && (GATT_Connection_Event_Data))
@@ -2239,18 +1660,6 @@ static void BTPSAPI GATT_Connection_Event_Callback(unsigned int BluetoothStackID
                Display(("Connection Type: %s.\r\n", ((GATT_Connection_Event_Data->Event_Data.GATT_Device_Connection_Data->ConnectionType == gctLE)?"LE":"BR/EDR")));
                Display(("Remote Device:   %s.\r\n", BoardStr));
                Display(("Connection MTU:  %u.\r\n", GATT_Connection_Event_Data->Event_Data.GATT_Device_Connection_Data->MTU));
-
-               if((DeviceInfo = SearchDeviceInfoEntryByBD_ADDR(&DeviceInfoList, GATT_Connection_Event_Data->Event_Data.GATT_Device_Connection_Data->RemoteDevice)) != NULL)
-               {
-                  /* Initialize the Transmit and Receive Buffers.       */
-                  InitializeBuffer(&(DeviceInfo->ReceiveBuffer));
-                  InitializeBuffer(&(DeviceInfo->TransmitBuffer));
-
-                  /* Send the Initial Credits if the Rx Credit CCD is   */
-                  /* already configured (for a bonded device this could */
-                  /* be the case).                                      */
-                  SPPLESendCredits(DeviceInfo, DeviceInfo->ReceiveBuffer.BytesFree);
-               }
             }
             else
                Display(("Error - Null Connection Data.\r\n"));
@@ -2269,42 +1678,6 @@ static void BTPSAPI GATT_Connection_Event_Callback(unsigned int BluetoothStackID
             }
             else
                Display(("Error - Null Disconnection Data.\r\n"));
-            break;
-         case etGATT_Connection_Server_Notification:
-            if(GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data)
-            {
-               /* Find the Device Info for the device that has sent us  */
-               /* the notification.                                     */
-               if((DeviceInfo = SearchDeviceInfoEntryByBD_ADDR(&DeviceInfoList, GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->RemoteDevice)) != NULL)
-               {
-                  /* Determine the characteristic that is being         */
-                  /* notified.                                          */
-                  if(GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeHandle == DeviceInfo->ClientInfo.Rx_Credit_Characteristic)
-                  {
-                     /* Verify that the length of the Rx Credit         */
-                     /* Notification is correct.                        */
-                     if(GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeValueLength == WORD_SIZE)
-                     {
-                        Credits = READ_UNALIGNED_WORD_LITTLE_ENDIAN(GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeValue);
-
-                        /* Handle the received credits event.           */
-                        SPPLEReceiveCreditEvent(DeviceInfo, Credits);
-                     }
-                  }
-                  else
-                  {
-                     if(GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeHandle == DeviceInfo->ClientInfo.Tx_Characteristic)
-                     {
-                        /* This is a Tx Characteristic Event.  So call  */
-                        /* the function to handle the data indication   */
-                        /* event.                                       */
-                        SPPLEDataIndicationEvent(DeviceInfo, GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeValueLength, GATT_Connection_Event_Data->Event_Data.GATT_Server_Notification_Data->AttributeValue);
-                     }
-                  }
-               }
-            }
-            else
-               Display(("Error - Null Server Notification Data.\r\n"));
             break;
       }
    }
