@@ -18,7 +18,6 @@
 #include "SS1BTPS.h"             /* Main SS1 BT Stack Header.                 */
 #include "SS1BTGAT.h"            /* Main SS1 GATT Header.                     */
 #include "SS1BTGAP.h"            /* Main SS1 GAP Service Header.              */
-#include "SS1BTGDI.h"            /* Main SS1 GATT Discovery Header.           */
 #include "BTPSKRNL.h"            /* BTPS Kernel Header.                       */
 #include "HAL.h"                 /* Function for Hardware Abstraction.        */
 
